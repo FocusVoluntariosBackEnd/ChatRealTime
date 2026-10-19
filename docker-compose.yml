@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: chat-postgres
+
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -u ${DB_USER}"]
+      timeout: 10s
+      interval: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+    volumes:
+      - chat_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  chat_postgres_data:
+
