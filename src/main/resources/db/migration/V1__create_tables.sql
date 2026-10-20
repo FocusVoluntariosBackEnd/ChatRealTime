@@ -32,6 +32,8 @@ CREATE TABLE messages (
     sender_id UUID NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    client_message_id VARCHAR(255) NOT NULL,
+    CONSTRAINT uk_messages_client_message UNIQUE (conversation_id, sender_id, client_message_id),
     CONSTRAINT fk_messages_conversations FOREIGN KEY (conversation_id) REFERENCES conversations(id),
     CONSTRAINT fk_messages_users FOREIGN KEY (sender_id) REFERENCES users(id)
 );
