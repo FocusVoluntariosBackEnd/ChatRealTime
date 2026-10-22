@@ -4,8 +4,6 @@ import com.focustecnologia.chat_real_time.conversation.dto.CreatePrivateConversa
 import com.focustecnologia.chat_real_time.conversation.dto.PrivateConversationResponse;
 import com.focustecnologia.chat_real_time.conversation.entity.Conversation;
 import com.focustecnologia.chat_real_time.conversation.entity.ConversationMember;
-import com.focustecnologia.chat_real_time.conversation.entity.Role;
-import com.focustecnologia.chat_real_time.conversation.entity.Type;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationMemberRepository;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.user.entity.User;
@@ -26,33 +24,40 @@ public class ConversationService {
     private final ConversationMemberRepository conversationMemberRepository;
 
     @Transactional
-    public PrivateConversationResponse createPrivate(User authenticatedUser, CreatePrivateConversationRequest request) {
-        UUID authenticatedUserId = authenticatedUser.getId();
-        UUID participantUserId = request.participantId();
+    public PrivateConversationResponse createPrivate(User creatorUser, CreatePrivateConversationRequest request) {
+        UUID creatorId = creatorUser.getId();
+        UUID participantId = request.participantId();
 
-        if (authenticatedUserId.equals(participantUserId)) {
-            throw new IllegalArgumentException("Not allowed start private conversation with yourself.");
-        }
+        validateDistinctUsers(creatorId, participantId);
 
-        User participantUser = userRepository.findById(participantUserId)
+        User participantUser = userRepository.findById(participantId)
                 .orElseThrow(() -> new RuntimeException("Participant not found."));
 
-        Optional<Conversation> existingConversation = conversationMemberRepository
-                .findPrivateConversationBetweenUsers(authenticatedUserId, participantUserId);
+        return conversationMemberRepository.findPrivateConversationBetweenUsers(creatorId, participantId)
+                .map(existing -> PrivateConversationResponse.toResponse(existing, participantUser))
+                .orElseGet(() -> {
+                    Conversation newConversation = createAndPersistPrivateConversation(creatorUser, participantUser);
+                    return PrivateConversationResponse.toResponse(newConversation, participantUser);
+                });
 
-        if (existingConversation.isPresent()) {
-            return PrivateConversationResponse.toResponse(existingConversation.get(), participantUser);
+    }
+
+    private void validateDistinctUsers(UUID userIdA, UUID userIdB) {
+        if (userIdA.equals(userIdB)){
+            throw new RuntimeException("Not allowed start private conversation with yourself.");
         }
+    }
 
-        Conversation conversation = Conversation.createPrivate(authenticatedUser);
+    private Conversation createAndPersistPrivateConversation(User creator, User participant) {
+        Conversation conversation = Conversation.createPrivate(creator);
 
         conversationRepository.save(conversation);
 
-        var member1 = ConversationMember.createPrivate(conversation, authenticatedUser);
-        var member2 = ConversationMember.createPrivate(conversation, participantUser);
+        var member1 = ConversationMember.createPrivate(conversation, creator);
+        var member2 = ConversationMember.createPrivate(conversation, participant);
 
         conversationMemberRepository.saveAll(List.of(member1, member2));
 
-        return PrivateConversationResponse.toResponse(conversation, participantUser);
+        return conversation;
     }
 }
