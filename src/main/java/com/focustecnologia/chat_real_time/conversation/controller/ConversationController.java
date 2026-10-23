@@ -25,6 +25,6 @@ public class ConversationController {
                                                                      @Valid @RequestBody CreatePrivateConversationRequest request) {
         PrivateConversationResponse response = service.createPrivate(authenticatedUser, request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.ok(response);
     }
 }
