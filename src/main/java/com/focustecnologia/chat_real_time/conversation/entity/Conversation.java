@@ -31,15 +31,26 @@ public class Conversation {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_a_id")
+    private User userA;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_b_id")
+    private User userB;
+
     protected Conversation() {}
 
-    public Conversation(Type type, String name, User createdBy) {
+    public Conversation(Type type, User createdBy) {
         this.type = type;
-        this.name = name;
         this.createdBy = createdBy;
     }
 
-    public static Conversation createPrivate(User creator) {
-        return new  Conversation(Type.PRIVATE, null, creator);
+    public static Conversation createPrivate(User creator, User userA, User userB) {
+        Conversation c = new Conversation(Type.PRIVATE, creator);
+        c.userA = userA;
+        c.userB = userB;
+
+        return c;
     }
 }
