@@ -1,6 +1,7 @@
 package com.focustecnologia.chat_real_time.user.service;
 
-import com.focustecnologia.chat_real_time.user.dto.UserResponse;
+import com.focustecnologia.chat_real_time.auth.controller.response.UserResponse;
+import com.focustecnologia.chat_real_time.auth.service.output.UserOutput;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +22,7 @@ public class UserService {
         User user = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found."));
 
-        return UserResponse.toResponse(user);
-    }
-
-    public UserResponse getByEmail(String email) {
-        User user = repository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found."));
-
-        return UserResponse.toResponse(user);
+        return UserResponse.from(UserOutput.fromUser(user));
     }
 
     public Page<UserResponse> getAll(int page, int size) {
@@ -38,6 +32,6 @@ public class UserService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").descending());
 
         return repository.findAll(pageable)
-                .map(UserResponse::toResponse);
+                .map(user -> UserResponse.from(UserOutput.fromUser(user)));
     }
 }
