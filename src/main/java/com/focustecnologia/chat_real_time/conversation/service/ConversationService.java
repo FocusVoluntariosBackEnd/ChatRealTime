@@ -1,22 +1,20 @@
 package com.focustecnologia.chat_real_time.conversation.service;
 
-import com.focustecnologia.chat_real_time.common.redis.DistributedLockService;
 import com.focustecnologia.chat_real_time.conversation.dto.CreatePrivateConversationRequest;
 import com.focustecnologia.chat_real_time.conversation.dto.PrivateConversationResponse;
 import com.focustecnologia.chat_real_time.conversation.entity.Conversation;
 import com.focustecnologia.chat_real_time.conversation.entity.ConversationMember;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationMemberRepository;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
+import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -24,74 +22,73 @@ public class ConversationService {
     private final UserRepository userRepository;
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository conversationMemberRepository;
-    private final DistributedLockService lockService;
 
     @Transactional
-    public PrivateConversationResponse createPrivate(User creatorUser, CreatePrivateConversationRequest request) {
-        UUID creatorId = creatorUser.getId();
+    public PrivateConversationResponse createPrivate(UUID creatorId, CreatePrivateConversationRequest request) {
         UUID participantId = request.participantId();
 
         validateDistinctUsers(creatorId, participantId);
 
-        User participantUser = userRepository.findById(participantId)
-                .orElseThrow(() -> new RuntimeException("Participant not found."));
+        User creatorUser = userRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Creator user not found"));
 
-        String lockKey = buildLockKey(creatorId, participantId);
-        boolean acquired = lockService.acquireLock(lockKey, Duration.ofSeconds(5));
+        User participantUser = userRepository.findById(request.participantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Participant user not found."));
 
-        if (acquired) {
-            try {
-                return conversationMemberRepository.findPrivateConversationBetweenUsers(creatorId, participantId)
-                        .map(existing -> PrivateConversationResponse.toResponse(existing, participantUser))
-                        .orElseGet(() -> {
-                            Conversation newConversation = createAndPersistPrivateConversation(creatorUser, participantUser);
-                            return PrivateConversationResponse.toResponse(newConversation, participantUser);
-                        });
-            } finally {
-                lockService.releaseLock(lockKey);
-            }
-        } else {
-            waitForAWhile(300);
-            return conversationMemberRepository.findPrivateConversationBetweenUsers(creatorId, participantId)
-                    .map(existing -> PrivateConversationResponse.toResponse(existing, participantUser))
-                    .orElseThrow(() -> new IllegalStateException("Failed retrieve concurrent conversation."));
+        OrderedUsers ordered = determineUserOrder(creatorUser, participantUser);
+
+        Optional<Conversation> existingConversation = conversationRepository.findPrivateBetween(
+                ordered.userA().getId(),
+                ordered.userB().getId()
+        );
+
+        if (existingConversation.isPresent()) {
+            return PrivateConversationResponse.toResponse(existingConversation.get(), participantUser);
+        }
+
+        try {
+            Conversation created = savePrivateConversation(creatorUser, participantUser, ordered.userA, ordered.userB);
+
+            return PrivateConversationResponse.toResponse(created, participantUser);
+        } catch (DataIntegrityViolationException ex) {
+            return findExistingConversationOrThrow(ordered.userA().getId(), ordered.userB().getId(), participantUser, ex);
         }
     }
 
     private void validateDistinctUsers(UUID userIdA, UUID userIdB) {
         if (userIdA.equals(userIdB)){
-            throw new RuntimeException("Not allowed start private conversation with yourself.");
+            throw new IllegalArgumentException("Cannot start private conversation with yourself.");
         }
     }
 
-    private Conversation createAndPersistPrivateConversation(User creator, User participant) {
-        Conversation conversation = Conversation.createPrivate(creator);
+    private OrderedUsers determineUserOrder(User creator, User participant) {
+        String creatorIdStr = creator.getId().toString();
+        String participantIdStr = participant.getId().toString();
 
-        conversationRepository.save(conversation);
+        if (creatorIdStr.compareTo(participantIdStr) < 0) {
+            return new OrderedUsers(creator, participant);
+        } else {
+            return new OrderedUsers(participant, creator);
+        }
+    }
+
+    @Transactional
+    protected Conversation savePrivateConversation(User creator, User participant, User userA, User userB) {
+        Conversation conversation = Conversation.createPrivate(creator, userA, userB);
+        conversationRepository.saveAndFlush(conversation);
 
         var member1 = ConversationMember.createPrivate(conversation, creator);
         var member2 = ConversationMember.createPrivate(conversation, participant);
-
         conversationMemberRepository.saveAll(List.of(member1, member2));
 
         return conversation;
     }
 
-    private String buildLockKey(UUID userIdA, UUID userIdB) {
-        if (userIdA.compareTo(userIdB) < 0){
-            return "lock:conversation:" + userIdA + ":" + userIdB;
-        } else {
-            return "lock:conversation:" + userIdB + ":" + userIdA;
-        }
+    private PrivateConversationResponse findExistingConversationOrThrow(UUID userAId, UUID userBId, User participant, DataIntegrityViolationException ex) {
+        return conversationRepository.findPrivateBetween(userAId, userBId)
+                .map(c -> PrivateConversationResponse.toResponse(c, participant))
+                .orElseThrow(() -> new IllegalStateException("Failed to retrieve concurrent conversation.", ex));
     }
 
-    private void waitForAWhile(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-
-            throw new IllegalStateException("Thread interrupted while waiting for lock", ex);
-        }
-    }
+    private record OrderedUsers(User userA, User userB) {}
 }
