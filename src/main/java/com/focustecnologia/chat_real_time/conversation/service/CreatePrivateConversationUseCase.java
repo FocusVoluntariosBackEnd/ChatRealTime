@@ -18,7 +18,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class ConversationService {
+public class CreatePrivateConversationUseCase {
     private final UserRepository userRepository;
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository conversationMemberRepository;

@@ -2,7 +2,7 @@ package com.focustecnologia.chat_real_time.conversation.controller;
 
 import com.focustecnologia.chat_real_time.conversation.dto.CreatePrivateConversationRequest;
 import com.focustecnologia.chat_real_time.conversation.dto.PrivateConversationResponse;
-import com.focustecnologia.chat_real_time.conversation.service.ConversationService;
+import com.focustecnologia.chat_real_time.conversation.service.CreatePrivateConversationUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import java.util.UUID;
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
 public class ConversationController {
-    private final ConversationService service;
+    private final CreatePrivateConversationUseCase service;
 
     @PostMapping("/private")
     public ResponseEntity<PrivateConversationResponse> createPrivate(@AuthenticationPrincipal Jwt jwt,
