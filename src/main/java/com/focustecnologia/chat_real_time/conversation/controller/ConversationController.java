@@ -19,14 +19,14 @@ import java.util.UUID;
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
 public class ConversationController {
-    private final CreatePrivateConversationUseCase service;
+    private final CreatePrivateConversationUseCase createPrivateUseCase;
 
     @PostMapping("/private")
     public ResponseEntity<PrivateConversationResponse> createPrivate(@AuthenticationPrincipal Jwt jwt,
                                                                      @Valid @RequestBody CreatePrivateConversationRequest request) {
         UUID userId = UUID.fromString(jwt.getSubject());
 
-        PrivateConversationResponse response = service.createPrivate(userId, request);
+        PrivateConversationResponse response = createPrivateUseCase.execute(userId, request);
 
         return ResponseEntity.ok(response);
     }

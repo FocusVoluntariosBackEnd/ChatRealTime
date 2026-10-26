@@ -24,7 +24,7 @@ public class CreatePrivateConversationUseCase {
     private final ConversationMemberRepository conversationMemberRepository;
 
     @Transactional
-    public PrivateConversationResponse createPrivate(UUID creatorId, CreatePrivateConversationRequest request) {
+    public PrivateConversationResponse execute(UUID creatorId, CreatePrivateConversationRequest request) {
         UUID participantId = request.participantId();
 
         validateDistinctUsers(creatorId, participantId);
