@@ -77,8 +77,8 @@ public class CreatePrivateConversationUseCase {
         Conversation conversation = Conversation.createPrivate(creator, userA, userB);
         conversationRepository.saveAndFlush(conversation);
 
-        var member1 = ConversationMember.createPrivate(conversation, creator);
-        var member2 = ConversationMember.createPrivate(conversation, participant);
+        var member1 = ConversationMember.createMember(conversation, creator);
+        var member2 = ConversationMember.createMember(conversation, participant);
         conversationMemberRepository.saveAll(List.of(member1, member2));
 
         return conversation;
