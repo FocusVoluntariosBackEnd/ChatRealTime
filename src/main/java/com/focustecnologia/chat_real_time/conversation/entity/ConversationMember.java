@@ -28,5 +28,17 @@ public class ConversationMember {
 
     @CreationTimestamp
     @Column(name = "joined_at", nullable = false, updatable = false)
-    private Instant joinedAt;
+    private Instant joinedAt = Instant.now();
+
+    protected ConversationMember() {}
+
+    public ConversationMember(Conversation conversation, User user, Role role) {
+        this.conversation = conversation;
+        this.user = user;
+        this.role = role;
+    }
+
+    public static ConversationMember createPrivate(Conversation conversation, User member) {
+        return new ConversationMember(conversation, member, Role.MEMBER);
+    }
 }
