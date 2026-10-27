@@ -7,6 +7,7 @@ import com.focustecnologia.chat_real_time.conversation.entity.ConversationMember
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationMemberRepository;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
+import com.focustecnologia.chat_real_time.exception.SameUsersConversationException;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,7 @@ public class CreatePrivateConversationUseCase {
 
     private void validateDistinctUsers(UUID userIdA, UUID userIdB) {
         if (userIdA.equals(userIdB)){
-            throw new IllegalArgumentException("Cannot start private conversation with yourself.");
+            throw new SameUsersConversationException("Cannot start private conversation with yourself.");
         }
     }
 
