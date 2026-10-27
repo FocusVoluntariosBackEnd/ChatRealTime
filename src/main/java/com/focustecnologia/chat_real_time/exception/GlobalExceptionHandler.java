@@ -41,6 +41,11 @@ public class GlobalExceptionHandler {
         return buildProblemDetail(HttpStatus.NOT_FOUND, "Resource Not Found", ex.getMessage());
     }
 
+    @ExceptionHandler(SameUsersConversationException.class)
+    public ProblemDetail handleSameUsersConversation(SameUsersConversationException ex) {
+        return buildProblemDetail(HttpStatus.CONFLICT, "Same Users Conversation", ex.getMessage());
+    }
+
     private ProblemDetail buildProblemDetail(HttpStatus status, String title, String detail) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setTitle(title);
