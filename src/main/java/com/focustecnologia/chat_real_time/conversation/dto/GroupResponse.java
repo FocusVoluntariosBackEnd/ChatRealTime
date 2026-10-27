@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public record GroupResponse(
         UUID id,
+        String name,
         Type type,
         Instant createdAt,
         List<ConversationMemberResponse> members
@@ -17,6 +18,7 @@ public record GroupResponse(
     public static GroupResponse toResponse(Conversation conversation, List<ConversationMember> members) {
         return new GroupResponse(
                 conversation.getId(),
+                conversation.getName(),
                 conversation.getType(),
                 conversation.getCreatedAt(),
                 toMembersResponse(members)

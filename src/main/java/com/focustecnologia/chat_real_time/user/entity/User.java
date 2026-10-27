@@ -1,5 +1,6 @@
 package com.focustecnologia.chat_real_time.user.entity;
 
+import com.focustecnologia.chat_real_time.exception.SameUsersConversationException;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -34,5 +35,11 @@ public class User {
         this.name = name;
         this.email = email;
         this.passwordHash = passwordHash;
+    }
+
+    public void validateDistinctUser(UUID userId) {
+        if (this.id.equals(userId)) {
+            throw new SameUsersConversationException("Cannot start conversation with yourself.");
+        }
     }
 }

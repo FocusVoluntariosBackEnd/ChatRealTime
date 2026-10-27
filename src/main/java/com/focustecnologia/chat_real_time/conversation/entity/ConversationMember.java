@@ -40,7 +40,11 @@ public class ConversationMember {
         this.role = role;
     }
 
-    public static ConversationMember createPrivate(Conversation conversation, User member) {
-        return new ConversationMember(conversation, member, Role.MEMBER);
+    public static ConversationMember createMember(Conversation conversation, User user) {
+        return new ConversationMember(conversation, user, Role.MEMBER);
+    }
+
+    public static ConversationMember createAdmin(Conversation conversation, User user) {
+        return new ConversationMember(conversation, user, Role.ADMIN);
     }
 }
