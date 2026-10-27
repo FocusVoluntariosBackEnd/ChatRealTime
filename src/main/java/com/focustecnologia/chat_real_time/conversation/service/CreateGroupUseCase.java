@@ -7,6 +7,7 @@ import com.focustecnologia.chat_real_time.conversation.entity.ConversationMember
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationMemberRepository;
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
+import com.focustecnologia.chat_real_time.exception.SameUsersConversationException;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,33 +25,52 @@ public class CreateGroupUseCase {
 
     @Transactional
     public GroupResponse execute(UUID creatorId, CreateGroupRequest request) {
+        Set<UUID> memberIds = new HashSet<>(request.membersIds());
+
+        validateDistinctUsers(creatorId, memberIds);
+
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
-        Conversation conversation = Conversation.createGroup(creator, request.name());
-        conversationRepository.save(conversation);
+        List<User> participants = getParticipants(memberIds);
 
-        ConversationMember admin = ConversationMember.createAdmin(conversation, creator);
-        conversationMemberRepository.save(admin);
-
-        List<ConversationMember> members = new ArrayList<>();
-
-        members.add(admin);
-
-        Set<UUID> memberIds = new HashSet<>(request.membersIds());
-
-        for (UUID participantId : memberIds) {
-            creator.validateDistinctUser(participantId);
-
-            User participant = userRepository.findById(participantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found."));
-
-            ConversationMember member = ConversationMember.createMember(conversation, participant);
-            conversationMemberRepository.save(member);
-
-            members.add(member);
-        }
+        Conversation conversation = createConversation(creator, request.name());
+        List<ConversationMember> members = createMembers(conversation, creator, participants);
 
         return GroupResponse.toResponse(conversation, members);
+    }
+
+    private void validateDistinctUsers(UUID creatorId, Set<UUID> memberIds) {
+        if (memberIds.contains(creatorId)) {
+            throw new SameUsersConversationException("Cannot start group conversation with yourself.");
+        }
+    }
+
+
+    private List<User> getParticipants(Set<UUID> memberIds) {
+        List<User> users = userRepository.findAllById(memberIds);
+
+        if (users.size() != memberIds.size()) {
+            throw new ResourceNotFoundException("One or more users not found.");
+        }
+
+        return users;
+    }
+
+    private Conversation createConversation(User creator, String name) {
+        Conversation conversation = Conversation.createGroup(creator, name);
+        return conversationRepository.save(conversation);
+    }
+
+    private List<ConversationMember> createMembers(Conversation conversation, User creator, List<User> participants) {
+        List<ConversationMember> members = new ArrayList<>();
+
+        members.add(ConversationMember.createAdmin(conversation, creator));
+
+        participants.stream()
+                .map(participant -> ConversationMember.createMember(conversation, participant))
+                .forEach(members::add);
+
+        return conversationMemberRepository.saveAll(members);
     }
 }

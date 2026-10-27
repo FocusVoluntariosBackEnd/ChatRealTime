@@ -36,10 +36,4 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
     }
-
-    public void validateDistinctUser(UUID userId) {
-        if (this.id.equals(userId)) {
-            throw new SameUsersConversationException("Cannot start conversation with yourself.");
-        }
-    }
 }
