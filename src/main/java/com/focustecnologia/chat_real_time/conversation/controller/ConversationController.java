@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-@Tag(name = "Conversas", description = "Endpoints para gerenciamento e criação de conversas privadas e em grupo")
-@SecurityRequirement(name = "Bearer Authentication")
+@Tag(name = "Conversas", description = "Endpoints para gerenciamento de conversas privadas e grupos")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
@@ -32,15 +32,15 @@ public class ConversationController {
 
     @Operation(summary = "Criar ou obter conversa privada", description = "Cria uma nova conversa direta entre o usuário autenticado e o destinatário, ou retorna a conversa existente se já houver uma.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Conversa privada criada ou recuperada com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Conversa privada obtida ou criada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos", content = @Content),
             @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Usuário destinatário não encontrado", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Conflito: o usuário informado é o próprio usuário autenticado", content = @Content)
+            @ApiResponse(responseCode = "404", description = "Destinatário não encontrado", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Conflito: tentativa de criar conversa consigo mesmo", content = @Content)
     })
     @PostMapping("/private")
-    public ResponseEntity<PrivateConversationResponse> createPrivate(@AuthenticationPrincipal Jwt jwt,
-                                                                     @Valid @RequestBody CreatePrivateConversationRequest request) {
+    public ResponseEntity<PrivateConversationResponse> createOrGetPrivate(@AuthenticationPrincipal Jwt jwt,
+                                                                          @Valid @RequestBody CreatePrivateConversationRequest request) {
         UUID userId = UUID.fromString(jwt.getSubject());
 
         PrivateConversationResponse response = createPrivateUseCase.execute(userId, request);
@@ -66,6 +66,15 @@ public class ConversationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Operation(summary = "Adicionar membro ao grupo", description = "Adiciona um novo membro a um grupo de conversa existente. Apenas administradores do grupo têm permissão para realizar esta operação.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Membro adicionado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados da requisição inválidos", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Apenas administradores podem adicionar membros ao grupo", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Grupo ou usuário a ser adicionado não encontrado", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Conflito: o usuário já é membro do grupo", content = @Content)
+    })
     @PostMapping("/groups/{id}/members")
     public ResponseEntity<ConversationMemberResponse> addMemberGroup(@PathVariable("id") UUID groupId,
                                                                      @AuthenticationPrincipal Jwt jwt,
