@@ -1,5 +1,6 @@
 package com.focustecnologia.chat_real_time.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ProblemDetail handleForbidden(ForbiddenException ex) {
+        return buildProblemDetail(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleResourceNotFound(ResourceNotFoundException ex) {
         return buildProblemDetail(HttpStatus.NOT_FOUND, "Resource Not Found", ex.getMessage());
@@ -44,6 +50,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SameUsersConversationException.class)
     public ProblemDetail handleSameUsersConversation(SameUsersConversationException ex) {
         return buildProblemDetail(HttpStatus.CONFLICT, "Same Users Conversation", ex.getMessage());
+    }
+
+    @ExceptionHandler(MemberAlreadyInGroupException.class)
+    public ProblemDetail handleMemberAlreadyInGroup(MemberAlreadyInGroupException ex) {
+        return buildProblemDetail(HttpStatus.CONFLICT, "Member Already In Group", ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation() {
+        return buildProblemDetail(
+                HttpStatus.CONFLICT,
+                "Data Integrity Violation", "Data conflict: the record already exists or violates integrity rules."
+        );
     }
 
     private ProblemDetail buildProblemDetail(HttpStatus status, String title, String detail) {
