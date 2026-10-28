@@ -1,9 +1,7 @@
 package com.focustecnologia.chat_real_time.conversation.controller;
 
-import com.focustecnologia.chat_real_time.conversation.dto.CreateGroupRequest;
-import com.focustecnologia.chat_real_time.conversation.dto.CreatePrivateConversationRequest;
-import com.focustecnologia.chat_real_time.conversation.dto.GroupResponse;
-import com.focustecnologia.chat_real_time.conversation.dto.PrivateConversationResponse;
+import com.focustecnologia.chat_real_time.conversation.dto.*;
+import com.focustecnologia.chat_real_time.conversation.service.ConversationService;
 import com.focustecnologia.chat_real_time.conversation.service.CreateGroupUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.CreatePrivateConversationUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,10 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -33,6 +28,7 @@ import java.util.UUID;
 public class ConversationController {
     private final CreatePrivateConversationUseCase createPrivateUseCase;
     private final CreateGroupUseCase createGroupUseCase;
+    private final ConversationService service;
 
     @Operation(summary = "Criar ou obter conversa privada", description = "Cria uma nova conversa direta entre o usuário autenticado e o destinatário, ou retorna a conversa existente se já houver uma.")
     @ApiResponses({
@@ -60,12 +56,24 @@ public class ConversationController {
             @ApiResponse(responseCode = "404", description = "Um ou mais participantes não encontrados", content = @Content),
             @ApiResponse(responseCode = "409", description = "Conflito: um dos membros informados é o próprio usuário autenticado", content = @Content)
     })
-    @PostMapping("/group")
+    @PostMapping("/groups")
     public ResponseEntity<GroupResponse> createGroup(@AuthenticationPrincipal Jwt jwt,
                                                      @Valid @RequestBody CreateGroupRequest request) {
         UUID userId = UUID.fromString(jwt.getSubject());
 
         GroupResponse response = createGroupUseCase.execute(userId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/groups/{id}/members")
+    public ResponseEntity<ConversationMemberResponse> addMemberGroup(@PathVariable("id") UUID groupId,
+                                                                     @AuthenticationPrincipal Jwt jwt,
+                                                                     @Valid @RequestBody AddMemberGroupRequest request
+                                                                     ) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        ConversationMemberResponse response = service.addMemberGroup(userId, groupId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

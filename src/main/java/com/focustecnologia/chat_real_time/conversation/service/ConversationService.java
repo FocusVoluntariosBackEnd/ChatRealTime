@@ -1,4 +1,63 @@
 package com.focustecnologia.chat_real_time.conversation.service;
 
+import com.focustecnologia.chat_real_time.conversation.dto.AddMemberGroupRequest;
+import com.focustecnologia.chat_real_time.conversation.dto.ConversationMemberResponse;
+import com.focustecnologia.chat_real_time.conversation.entity.Conversation;
+import com.focustecnologia.chat_real_time.conversation.entity.ConversationMember;
+import com.focustecnologia.chat_real_time.conversation.entity.Role;
+import com.focustecnologia.chat_real_time.conversation.entity.Type;
+import com.focustecnologia.chat_real_time.conversation.repository.ConversationMemberRepository;
+import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
+import com.focustecnologia.chat_real_time.exception.ForbiddenException;
+import com.focustecnologia.chat_real_time.exception.MemberAlreadyInGroupException;
+import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
+import com.focustecnologia.chat_real_time.user.entity.User;
+import com.focustecnologia.chat_real_time.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
 public class ConversationService {
+    private final ConversationRepository conversationRepository;
+    private final ConversationMemberRepository memberRepository;
+    private final UserRepository userRepository;
+
+    @Transactional
+    public ConversationMemberResponse addMemberGroup(UUID adminId, UUID groupId, AddMemberGroupRequest request) {
+        Conversation group = conversationRepository.findByIdAndType(groupId, Type.GROUP)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found."));
+
+        validateAdminPermission(groupId, adminId);
+
+        validateMemberNotAlreadyInGroup(groupId, request.memberId());
+
+        User memberUser = userRepository.findById(request.memberId())
+                .orElseThrow(() -> new ResourceNotFoundException("Member user not found."));
+
+        ConversationMember member = createMember(group, memberUser);
+
+        return ConversationMemberResponse.toResponse(member);
+    }
+
+    private void validateAdminPermission(UUID groupId, UUID adminId) {
+        boolean isAdmin = memberRepository.existsByConversationIdAndUserIdAndRole(groupId, adminId, Role.ADMIN);
+        if (!isAdmin) {
+            throw new ForbiddenException("Only admins can add members to this group.");
+        }
+    }
+
+    private void validateMemberNotAlreadyInGroup(UUID groupId, UUID memberId) {
+        if (memberRepository.existsByConversationIdAndUserId(groupId, memberId)) {
+            throw new MemberAlreadyInGroupException("User already member of group.");
+        }
+    }
+
+    private ConversationMember createMember(Conversation group, User user) {
+        ConversationMember member = ConversationMember.createMember(group, user);
+        return memberRepository.save(member);
+    }
 }

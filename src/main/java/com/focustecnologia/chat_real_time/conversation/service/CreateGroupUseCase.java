@@ -30,7 +30,7 @@ public class CreateGroupUseCase {
         validateDistinctUsers(creatorId, memberIds);
 
         User creator = userRepository.findById(creatorId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Creator user not found."));
 
         List<User> participants = getParticipants(memberIds);
 
@@ -51,7 +51,7 @@ public class CreateGroupUseCase {
         List<User> users = userRepository.findAllById(memberIds);
 
         if (users.size() != memberIds.size()) {
-            throw new ResourceNotFoundException("One or more users not found.");
+            throw new ResourceNotFoundException("One or more participant users not found.");
         }
 
         return users;
