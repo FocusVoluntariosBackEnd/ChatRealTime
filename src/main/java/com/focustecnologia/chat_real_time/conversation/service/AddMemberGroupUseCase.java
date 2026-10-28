@@ -11,6 +11,7 @@ import com.focustecnologia.chat_real_time.conversation.repository.ConversationRe
 import com.focustecnologia.chat_real_time.exception.ForbiddenException;
 import com.focustecnologia.chat_real_time.exception.MemberAlreadyInGroupException;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
+import com.focustecnologia.chat_real_time.exception.SameUsersConversationException;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,13 +22,15 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class ConversationService {
+public class AddMemberGroupUseCase {
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
 
     @Transactional
-    public ConversationMemberResponse addMemberGroup(UUID adminId, UUID groupId, AddMemberGroupRequest request) {
+    public ConversationMemberResponse execute(UUID adminId, UUID groupId, AddMemberGroupRequest request) {
+        validateDistinctUsers(adminId, request.memberId());
+
         Conversation group = conversationRepository.findByIdAndType(groupId, Type.GROUP)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found."));
 
@@ -41,6 +44,12 @@ public class ConversationService {
         ConversationMember member = createMember(group, memberUser);
 
         return ConversationMemberResponse.toResponse(member);
+    }
+
+    private void validateDistinctUsers(UUID userAId, UUID userBId) {
+        if (userAId.equals(userBId)) {
+            throw new SameUsersConversationException("Cannot add yourself to the group.");
+        }
     }
 
     private void validateAdminPermission(UUID groupId, UUID adminId) {
