@@ -1,9 +1,10 @@
 package com.focustecnologia.chat_real_time.conversation.controller;
 
 import com.focustecnologia.chat_real_time.conversation.dto.*;
-import com.focustecnologia.chat_real_time.conversation.service.ConversationService;
+import com.focustecnologia.chat_real_time.conversation.service.AddMemberGroupUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.CreateGroupUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.CreatePrivateConversationUseCase;
+import com.focustecnologia.chat_real_time.conversation.service.DeleteMemberGroupUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,7 +29,8 @@ import java.util.UUID;
 public class ConversationController {
     private final CreatePrivateConversationUseCase createPrivateUseCase;
     private final CreateGroupUseCase createGroupUseCase;
-    private final ConversationService service;
+    private final AddMemberGroupUseCase addMemberGroupUseCase;
+    private final DeleteMemberGroupUseCase deleteMemberGroupUseCase;
 
     @Operation(summary = "Criar ou obter conversa privada", description = "Cria uma nova conversa direta entre o usuário autenticado e o destinatário, ou retorna a conversa existente se já houver uma.")
     @ApiResponses({
@@ -73,7 +75,7 @@ public class ConversationController {
             @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content),
             @ApiResponse(responseCode = "403", description = "Apenas administradores podem adicionar membros ao grupo", content = @Content),
             @ApiResponse(responseCode = "404", description = "Grupo ou usuário a ser adicionado não encontrado", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Conflito: o usuário já é membro do grupo", content = @Content)
+            @ApiResponse(responseCode = "409", description = "Conflito: o usuário já é membro do grupo ou tentativa de adicionar a si mesmo", content = @Content)
     })
     @PostMapping("/groups/{id}/members")
     public ResponseEntity<ConversationMemberResponse> addMemberGroup(@PathVariable("id") UUID groupId,
@@ -82,8 +84,30 @@ public class ConversationController {
                                                                      ) {
         UUID userId = UUID.fromString(jwt.getSubject());
 
-        ConversationMemberResponse response = service.addMemberGroup(userId, groupId, request);
+        ConversationMemberResponse response = addMemberGroupUseCase.execute(userId, groupId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Remover membro do grupo",
+            description = "Remove um membro de um grupo de conversa existente. Apenas administradores do grupo têm permissão para realizar esta operação."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Membro removido com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Apenas administradores podem remover membros do grupo", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Grupo ou membro não encontrado", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Conflito: tentativa de remover a si próprio", content = @Content)
+    })
+    @DeleteMapping("/groups/{id}/members/{userId}")
+    public ResponseEntity<Void> deleteMemberGroup(@PathVariable("id") UUID groupId,
+                                                  @PathVariable("userId") UUID memberId,
+                                                  @AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        deleteMemberGroupUseCase.execute(userId, groupId, memberId);
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
