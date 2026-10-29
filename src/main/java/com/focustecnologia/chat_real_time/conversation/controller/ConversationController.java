@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @Tag(name = "Conversas", description = "Endpoints para gerenciamento de conversas privadas e grupos")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "Bearer Authentication")
 @RestController
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
