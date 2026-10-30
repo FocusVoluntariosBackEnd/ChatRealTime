@@ -25,6 +25,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
     Optional<Conversation> findPrivateBetween(@Param("userAId") UUID userAId,
                                               @Param("userBId") UUID userBId);
 
+    Optional<Conversation> findByIdAndType(UUID id, Type type);
 
     @Query(
             value = """
