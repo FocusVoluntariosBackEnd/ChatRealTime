@@ -1,5 +1,10 @@
 package com.focustecnologia.chat_real_time.conversation.controller;
 
+import com.focustecnologia.chat_real_time.conversation.dto.ConversationSumaryResponse;
+import com.focustecnologia.chat_real_time.conversation.dto.CreatePrivateConversationRequest;
+import com.focustecnologia.chat_real_time.conversation.dto.PrivateConversationResponse;
+import com.focustecnologia.chat_real_time.conversation.service.CreatePrivateConversationUseCase;
+import com.focustecnologia.chat_real_time.conversation.service.FindAllConversationsUseCase;
 import com.focustecnologia.chat_real_time.conversation.dto.*;
 import com.focustecnologia.chat_real_time.conversation.service.AddMemberGroupUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.CreateGroupUseCase;
@@ -12,7 +17,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +36,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ConversationController {
     private final CreatePrivateConversationUseCase createPrivateUseCase;
+    private final FindAllConversationsUseCase findAllConversationsUseCase;
     private final CreateGroupUseCase createGroupUseCase;
     private final AddMemberGroupUseCase addMemberGroupUseCase;
     private final DeleteMemberGroupUseCase deleteMemberGroupUseCase;
@@ -48,6 +57,19 @@ public class ConversationController {
         PrivateConversationResponse response = createPrivateUseCase.execute(userId, request);
 
         return ResponseEntity.ok(response);
+
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<ConversationSumaryResponse>> findAll (
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int size) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        return ResponseEntity.ok(findAllConversationsUseCase.execute(userId, page, size));
+
     }
 
     @Operation(summary = "Criar grupo de conversa", description = "Cria um novo grupo de conversa com os participantes informados, definindo o usuário autenticado como administrador.")

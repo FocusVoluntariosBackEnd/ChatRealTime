@@ -26,7 +26,7 @@ public class UserService {
     }
 
     public Page<UserResponse> getAll(int page, int size) {
-        page = Math.min(0, page - 1);
+        page = Math.max(0, page - 1);
         size = Math.min(Math.max(1, size), 25);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").descending());
