@@ -1,5 +1,6 @@
 package com.focustecnologia.chat_real_time.user.entity;
 
+import com.focustecnologia.chat_real_time.exception.SameUsersConversationException;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
