@@ -1,6 +1,7 @@
 package com.focustecnologia.chat_real_time.conversation.repository;
 
 import com.focustecnologia.chat_real_time.conversation.entity.Conversation;
+import com.focustecnologia.chat_real_time.conversation.entity.Type;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,4 +21,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
             """)
     Optional<Conversation> findPrivateBetween(@Param("userAId") UUID userAId,
                                               @Param("userBId") UUID userBId);
+
+    Optional<Conversation> findByIdAndType(UUID id, Type type);
 }

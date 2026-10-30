@@ -2,6 +2,7 @@ package com.focustecnologia.chat_real_time.conversation.entity;
 
 import com.focustecnologia.chat_real_time.user.entity.User;
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -9,6 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "conversation_members")
+@Getter
 public class ConversationMember {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -38,7 +40,11 @@ public class ConversationMember {
         this.role = role;
     }
 
-    public static ConversationMember createPrivate(Conversation conversation, User member) {
-        return new ConversationMember(conversation, member, Role.MEMBER);
+    public static ConversationMember createMember(Conversation conversation, User user) {
+        return new ConversationMember(conversation, user, Role.MEMBER);
+    }
+
+    public static ConversationMember createAdmin(Conversation conversation, User user) {
+        return new ConversationMember(conversation, user, Role.ADMIN);
     }
 }

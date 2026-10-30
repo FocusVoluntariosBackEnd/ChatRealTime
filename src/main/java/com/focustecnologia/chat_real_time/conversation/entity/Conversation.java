@@ -53,4 +53,11 @@ public class Conversation {
 
         return c;
     }
+
+    public static Conversation createGroup(User creator, String name) {
+        Conversation c = new Conversation(Type.GROUP, creator);
+        c.name = name.trim();
+
+        return c;
+    }
 }
