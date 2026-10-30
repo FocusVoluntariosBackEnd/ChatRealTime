@@ -8,8 +8,9 @@ import com.focustecnologia.chat_real_time.conversation.service.FindAllConversati
 import com.focustecnologia.chat_real_time.conversation.dto.*;
 import com.focustecnologia.chat_real_time.conversation.service.AddMemberGroupUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.CreateGroupUseCase;
-import com.focustecnologia.chat_real_time.conversation.service.CreatePrivateConversationUseCase;
 import com.focustecnologia.chat_real_time.conversation.service.DeleteMemberGroupUseCase;
+import com.focustecnologia.chat_real_time.message.dto.MessageListResponse;
+import com.focustecnologia.chat_real_time.message.service.FindConversationMessagesUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,8 +18,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -40,6 +39,7 @@ public class ConversationController {
     private final CreateGroupUseCase createGroupUseCase;
     private final AddMemberGroupUseCase addMemberGroupUseCase;
     private final DeleteMemberGroupUseCase deleteMemberGroupUseCase;
+    private final FindConversationMessagesUseCase findConversationMessagesUseCase;
 
     @Operation(summary = "Criar ou obter conversa privada", description = "Cria uma nova conversa direta entre o usuário autenticado e o destinatário, ou retorna a conversa existente se já houver uma.")
     @ApiResponses({
@@ -76,6 +76,26 @@ public class ConversationController {
 
         return ResponseEntity.ok(findAllConversationsUseCase.execute(userId, page, size));
 
+    }
+
+    @Operation(summary = "Consultar histórico de mensagens", description = "Retorna mensagens de uma conversa para um participante autenticado, da mais recente para a mais antiga, com paginação por page e limit.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Histórico retornado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Conversa não encontrada ou inacessível", content = @Content)
+    })
+    @GetMapping("/{id}/messages")
+    public ResponseEntity<MessageListResponse> findMessages(
+            @PathVariable("id") UUID conversationId,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        return ResponseEntity.ok(
+                findConversationMessagesUseCase.execute(userId, conversationId, page, limit)
+        );
     }
 
     @Operation(summary = "Criar grupo de conversa", description = "Cria um novo grupo de conversa com os participantes informados, definindo o usuário autenticado como administrador.")
