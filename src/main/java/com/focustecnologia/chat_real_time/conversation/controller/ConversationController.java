@@ -60,6 +60,12 @@ public class ConversationController {
 
     }
 
+    @Operation(summary = "Listar conversas do usuário autenticado", description = "Retorna uma página das conversas das quais o usuário autenticado participa, ordenadas da mais recente para a mais antiga.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Página de conversas retornada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de paginação em formato inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Não autenticado", content = @Content)
+    })
     @GetMapping
     public ResponseEntity<Page<ConversationSumaryResponse>> findAll (
             @AuthenticationPrincipal Jwt jwt,
