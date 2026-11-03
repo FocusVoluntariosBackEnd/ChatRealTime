@@ -24,7 +24,7 @@ public class MessageRead {
 
     @CreationTimestamp
     @Column(name = "read_at", nullable = false, updatable = false)
-    private Instant readAt;
+    private Instant readAt = Instant.now();
 
     protected MessageRead() {}
 
