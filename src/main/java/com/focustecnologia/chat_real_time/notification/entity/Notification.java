@@ -3,6 +3,7 @@ package com.focustecnologia.chat_real_time.notification.entity;
 import com.focustecnologia.chat_real_time.message.entity.Message;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -10,6 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "notifications")
+@Getter
 public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,5 +30,11 @@ public class Notification {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
+
+    public void markAsRead() {
+        if (!isRead) {
+            isRead = true;
+        }
+    }
 }
