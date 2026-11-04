@@ -7,10 +7,12 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, UUID> {
     @EntityGraph(attributePaths = "sender")
     Slice<Message> findByConversationId(UUID conversationId, Pageable pageable);
+    Optional<Message> findByConversationIdAndClientMessageId(UUID conversationId, String clientMessageId);
 }
