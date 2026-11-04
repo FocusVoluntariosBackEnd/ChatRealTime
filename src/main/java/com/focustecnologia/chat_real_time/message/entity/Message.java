@@ -30,8 +30,17 @@ public class Message {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Instant createdAt = Instant.now();
 
     @Column(name = "client_message_id", nullable = false, updatable = false)
     private String clientMessageId;
+
+    protected Message() {}
+
+    public Message(Conversation conversation, User sender, String content, String clientMessageId) {
+        this.conversation = conversation;
+        this.sender = sender;
+        this.content = content;
+        this.clientMessageId = clientMessageId;
+    }
 }
