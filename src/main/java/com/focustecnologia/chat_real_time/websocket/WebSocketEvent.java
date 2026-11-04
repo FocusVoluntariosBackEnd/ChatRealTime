@@ -11,6 +11,6 @@ public record WebSocketEvent<T>(
         T data
 ) {
         public static WebSocketEvent<MessageAckPayload> toAck(MessageAckPayload payload) {
-                return new WebSocketEvent<>("messages.ack", payload);
+                return new WebSocketEvent<>("message:ack", payload);
         }
 }
