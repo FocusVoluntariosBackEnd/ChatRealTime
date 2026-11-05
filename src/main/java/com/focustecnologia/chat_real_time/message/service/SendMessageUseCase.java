@@ -25,6 +25,7 @@ public class SendMessageUseCase {
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final MessageBroadcasterService broadcasterService;
 
     @Transactional
     public MessageAckPayload execute(UUID senderId, MessageSendPayload payload) {
@@ -42,6 +43,8 @@ public class SendMessageUseCase {
         }
 
         Message newMessage = createMessage(conversation, sender, payload.content(), payload.clientMessageId());
+
+        broadcasterService.transmitMessage(newMessage);
 
         return MessageAckPayload.toBody(newMessage);
     }
