@@ -1,4 +1,4 @@
-package com.focustecnologia.chat_real_time.message.dto;
+package com.focustecnologia.chat_real_time.message.dto.websocket;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
