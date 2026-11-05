@@ -5,8 +5,8 @@ import com.focustecnologia.chat_real_time.conversation.repository.ConversationMe
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.exception.ForbiddenException;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
-import com.focustecnologia.chat_real_time.message.dto.MessageAckPayload;
-import com.focustecnologia.chat_real_time.message.dto.MessageSendPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageAckPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageSendPayload;
 import com.focustecnologia.chat_real_time.message.entity.Message;
 import com.focustecnologia.chat_real_time.message.repository.MessageRepository;
 import com.focustecnologia.chat_real_time.user.entity.User;
