@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
+import java.security.Principal;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -39,9 +40,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             handleConnect(accessor);
         }
-
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            handleSubscribe(accessor);
+                handleSubscribe(accessor);
         }
 
         return message;
@@ -61,8 +61,9 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             Jwt jwt = decoder.decode(token);
             var auth = new JwtAuthenticationToken(jwt, Collections.emptyList());
             accessor.setUser(auth);
-            log.info("User authenticated successfully in WebSocket: {}", jwt.getSubject());
+            log.info("User authenticated successfully in WebSocket CONNECT: {}", jwt.getSubject());
         } catch (JwtException ex) {
+            log.error("JWT decoding failed during WebSocket connect: {}", ex.getMessage());
             throw new BadCredentialsException("Jwt token invalid or expired.");
         }
     }
@@ -78,8 +79,11 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             boolean isMember = memberRepository.existsByConversationIdAndUserId(conversationId, authenticatedUserId);
 
             if (!isMember) {
+                log.warn("User {} tried to subscribe to unauthorized conversation topic {}", authenticatedUserId, conversationId);
                 throw new ForbiddenException("Cannot subscribe to conversation.");
             }
+
+            log.info("User {} authorized to subscribe to conversation topic {}", authenticatedUserId, conversationId);
         }
     }
 }
