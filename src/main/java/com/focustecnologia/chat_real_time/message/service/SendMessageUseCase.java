@@ -5,8 +5,8 @@ import com.focustecnologia.chat_real_time.conversation.repository.ConversationMe
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.exception.ForbiddenException;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
-import com.focustecnologia.chat_real_time.message.dto.MessageAckPayload;
-import com.focustecnologia.chat_real_time.message.dto.MessageSendPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageAckPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageSendPayload;
 import com.focustecnologia.chat_real_time.message.entity.Message;
 import com.focustecnologia.chat_real_time.message.repository.MessageRepository;
 import com.focustecnologia.chat_real_time.user.entity.User;
@@ -25,6 +25,7 @@ public class SendMessageUseCase {
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final MessageBroadcasterService broadcasterService;
 
     @Transactional
     public MessageAckPayload execute(UUID senderId, MessageSendPayload payload) {
@@ -42,6 +43,8 @@ public class SendMessageUseCase {
         }
 
         Message newMessage = createMessage(conversation, sender, payload.content(), payload.clientMessageId());
+
+        broadcasterService.transmitMessage(newMessage);
 
         return MessageAckPayload.toBody(newMessage);
     }

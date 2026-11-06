@@ -1,4 +1,4 @@
-package com.focustecnologia.chat_real_time.message.dto;
+package com.focustecnologia.chat_real_time.message.dto.websocket;
 
 import com.focustecnologia.chat_real_time.message.entity.Message;
 
