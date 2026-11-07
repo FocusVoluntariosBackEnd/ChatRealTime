@@ -1,5 +1,6 @@
-package com.focustecnologia.chat_real_time.message.service;
+package com.focustecnologia.chat_real_time.message.redis;
 
+import com.focustecnologia.chat_real_time.config.RedisConfig;
 import com.focustecnologia.chat_real_time.message.dto.websocket.MessageNewPayload;
 import com.focustecnologia.chat_real_time.message.entity.Message;
 import com.focustecnologia.chat_real_time.websocket.WebSocketEvent;
@@ -23,7 +24,7 @@ public class RedisMessagePublisher {
 
         try {
             String json = objectMapper.writeValueAsString(body);
-            String channel = "chat:conversations:" + payload.conversationId();
+            String channel = RedisConfig.CHAT_CONVERSATIONS_CHANNEL_PREFIX + payload.conversationId();
 
             redisTemplate.convertAndSend(channel, json);
         } catch (JacksonException ex) {
