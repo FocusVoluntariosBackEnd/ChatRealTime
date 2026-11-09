@@ -20,7 +20,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CreateGroupUseCase {
     private final ConversationRepository conversationRepository;
-    private final ConversationMemberRepository conversationMemberRepository;
+    private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -71,6 +71,6 @@ public class CreateGroupUseCase {
                 .map(participant -> ConversationMember.createMember(conversation, participant))
                 .forEach(members::add);
 
-        return conversationMemberRepository.saveAll(members);
+        return memberRepository.saveAll(members);
     }
 }
