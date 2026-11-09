@@ -1,6 +1,5 @@
 package com.focustecnologia.chat_real_time.message.redis;
 
-import com.focustecnologia.chat_real_time.config.RedisConfig;
 import com.focustecnologia.chat_real_time.websocket.WebSocketEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,16 +17,16 @@ import java.nio.charset.StandardCharsets;
 @Component
 @RequiredArgsConstructor
 public class RedisMessageSubscriber implements MessageListener {
-    private static final String TOPIC_WEBSOCKET_CONVERSATIONS__PREFIX = "/topic/conversations/";
-
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+
+    private static final String TOPIC_WEBSOCKET_CONVERSATIONS_PREFIX = "/topic/conversations/";
 
     @Override
     public void onMessage(Message message, byte @Nullable [] pattern) {
         String json = new String(message.getBody(), StandardCharsets.UTF_8);
         String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
-        String topicWebSocket = channel.replace(RedisConfig.CHAT_CONVERSATIONS_CHANNEL_PREFIX, TOPIC_WEBSOCKET_CONVERSATIONS__PREFIX);
+        String topicWebSocket = channel.replace("chat:conversations:", TOPIC_WEBSOCKET_CONVERSATIONS_PREFIX);
 
         try {
             WebSocketEvent<?> event = objectMapper.readValue(json, WebSocketEvent.class);

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,4 +17,6 @@ public interface ConversationMemberRepository extends JpaRepository<Conversation
     boolean existsByConversationIdAndUserIdAndRole(UUID conversationId, UUID userId, Role role);
 
     Optional<ConversationMember> findByConversationIdAndUserId(UUID conversationId, UUID userId);
+
+    List<ConversationMember> findAllByConversationId(UUID conversationId);
 }
