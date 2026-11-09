@@ -1,4 +1,5 @@
 package com.focustecnologia.chat_real_time.message.event;
 
-public class MessageCreatedEvent {
-}
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageNewPayload;
+
+public record MessageCreatedEvent(MessageNewPayload payload) {}
