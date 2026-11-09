@@ -73,7 +73,7 @@ A aplicação fica disponível em `http://localhost:8080`.
 ./mvnw test
 ```
 
-Os fluxos HTTP podem ser validados pelo Swagger e os fluxos em tempo real pelo frontend de exemplo. Consulte a [Estratégia e execução de testes](docs/testing/estrategia-e-execucao.md).
+Os fluxos HTTP podem ser validados pelo Swagger e os fluxos em tempo real pelo frontend de exemplo. Consulte a [Estratégia e execução de testes](docs/testing/estrategia-e-execucao.md) e o [roteiro de teste pelo FrontTeste](docs/testing/teste-pelo-frontTest.md).
 
 ## Documentação
 
@@ -105,3 +105,4 @@ Os fluxos HTTP podem ser validados pelo Swagger e os fluxos em tempo real pelo f
 ### Testes
 
 - [Estratégia e execução de testes](docs/testing/estrategia-e-execucao.md)
+- [Teste pelo FrontTeste](docs/testing/teste-pelo-frontTest.md)
