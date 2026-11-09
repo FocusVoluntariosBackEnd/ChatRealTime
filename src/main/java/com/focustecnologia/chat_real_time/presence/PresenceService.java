@@ -1,7 +1,6 @@
 package com.focustecnologia.chat_real_time.presence;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
@@ -11,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -20,7 +20,7 @@ public class PresenceService {
 
     private final StringRedisTemplate redis;
     private final SimpUserRegistry simpUserRegistry;
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final PresenceRedisPublisher presencePublisher;
     private final Map<String, String> localSessions = new ConcurrentHashMap<>();
 
     public void connected(String userId, String sessionId) {
@@ -28,8 +28,12 @@ public class PresenceService {
         touch(sessionId, userId);
         localSessions.put(sessionId, userId);
 
-        if (Long.valueOf(1).equals(redis.opsForSet().add(onlineUsersKey(), userId))) {
-            publishPresenceChanged(userId, PresenceStatus.ONLINE);
+        boolean becameOnline = Long.valueOf(1).equals(
+                redis.opsForSet().add(onlineUsersKey(), userId)
+        );
+
+        if (becameOnline) {
+            presencePublisher.publish(UUID.fromString(userId), PresenceStatus.ONLINE);
         }
     }
 
@@ -77,8 +81,12 @@ public class PresenceService {
 
         redis.delete(userSessionsKey(userId));
 
-        if (Long.valueOf(1).equals(redis.opsForSet().remove(onlineUsersKey(), userId))) {
-            publishPresenceChanged(userId, PresenceStatus.OFFLINE);
+        boolean becameOffline = Long.valueOf(1).equals(
+                redis.opsForSet().remove(onlineUsersKey(), userId)
+        );
+
+        if (becameOffline) {
+            presencePublisher.publish(UUID.fromString(userId), PresenceStatus.OFFLINE);
         }
     }
 
@@ -91,10 +99,6 @@ public class PresenceService {
 
         return user != null && user.getSessions().stream()
                 .anyMatch(session -> session.getId().equals(sessionId));
-    }
-
-    private void publishPresenceChanged(String userId, PresenceStatus status) {
-        applicationEventPublisher.publishEvent(new PresenceChangedEvent(userId, status));
     }
 
     private boolean hasLiveSession(String userId) {

@@ -6,20 +6,16 @@ import com.focustecnologia.chat_real_time.conversation.repository.ConversationRe
 import com.focustecnologia.chat_real_time.exception.ForbiddenException;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
 import com.focustecnologia.chat_real_time.message.dto.MessageAckPayload;
-import com.focustecnologia.chat_real_time.message.dto.MessageNewPayload;
 import com.focustecnologia.chat_real_time.message.dto.MessageSendPayload;
 import com.focustecnologia.chat_real_time.message.entity.Message;
 import com.focustecnologia.chat_real_time.message.repository.MessageRepository;
-import com.focustecnologia.chat_real_time.realtime.MessageSavedEvent;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -29,7 +25,6 @@ public class SendMessageUseCase {
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public MessageAckPayload execute(UUID senderId, MessageSendPayload payload) {
@@ -48,8 +43,6 @@ public class SendMessageUseCase {
 
         Message newMessage = createMessage(conversation, sender, payload.content(), payload.clientMessageId());
 
-        publishMessageSavedEvent(newMessage, senderId);
-
         return MessageAckPayload.toBody(newMessage);
     }
 
@@ -64,24 +57,5 @@ public class SendMessageUseCase {
     private Message createMessage(Conversation conversation, User user, String content, String clientMessageId) {
         Message message = new Message(conversation, user, content, clientMessageId);
         return messageRepository.save(message);
-    }
-
-    private void publishMessageSavedEvent(Message message, UUID senderId) {
-        List<String> recipientIds = memberRepository.findAllByConversationId(message.getConversation().getId())
-                .stream()
-                .map(member -> member.getUser().getId())
-                .filter(userId -> !userId.equals(senderId))
-                .map(UUID::toString)
-                .toList();
-
-        MessageNewPayload messagePayload = new MessageNewPayload(
-                message.getId(),
-                message.getConversation().getId(),
-                senderId,
-                message.getContent(),
-                message.getCreatedAt()
-        );
-
-        applicationEventPublisher.publishEvent(new MessageSavedEvent(messagePayload, recipientIds));
     }
 }
