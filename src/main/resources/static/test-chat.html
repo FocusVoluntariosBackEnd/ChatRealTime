@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Real-Time</title>
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #263347;
+      --border: #334155;
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --text: #f1f5f9;
+      --text-muted: #64748b;
+      --text-secondary: #94a3b8;
+      --bubble-me: #2563eb;
+      --bubble-other: #334155;
+      --green: #10b981;
+      --blue-read: #38bdf8;
+      --notif-bg: #4f46e5;
+      --danger: #ef4444;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: 1fr;
+      overflow: hidden;
+    }
+
+    /* ─── SIDEBAR ──────────────────────────────────────────────── */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .sidebar-header .subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], input[type="password"], textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, textarea:focus { border-color: var(--primary); }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-row button { flex: 1; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-pill::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .status-pill.online {
+      background: rgba(16,185,129,0.15);
+      color: #34d399;
+      border: 1px solid #10b981;
+    }
+
+    .status-pill.online::before { background: #10b981; }
+
+    .status-pill.offline {
+      background: rgba(100,116,139,0.15);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .status-pill.offline::before { background: var(--text-muted); }
+
+    /* Conversation List */
+    .conv-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .conv-item {
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .conv-item:hover { background: var(--surface-2); }
+    .conv-item.active { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
+
+    .conv-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .conv-info { flex: 1; min-width: 0; }
+    .conv-name { font-size: 13px; font-weight: 600; }
+    .conv-preview { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+    .conv-unread {
+      background: var(--primary);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 2px 6px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    /* ─── MAIN CHAT AREA ──────────────────────────────────────── */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .chat-header .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .chat-header .info { flex: 1; }
+    .chat-header .info .name { font-size: 15px; font-weight: 600; }
+    .chat-header .info .sub { font-size: 11px; color: var(--text-muted); }
+
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--bg);
+    }
+
+    .chat-placeholder {
+      margin: auto;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .chat-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+    .chat-placeholder p { font-size: 14px; }
+
+    /* ─── MESSAGE BUBBLES ─────────────────────────────────────── */
+    .msg-day-divider {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 8px 0;
+      position: relative;
+    }
+
+    .msg-day-divider::before, .msg-day-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 35%;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .msg-day-divider::before { left: 0; }
+    .msg-day-divider::after { right: 0; }
+
+    .msg-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 68%;
+      animation: msgIn 0.18s ease-out;
+    }
+
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-wrapper.me { align-self: flex-end; align-items: flex-end; }
+    .msg-wrapper.other { align-self: flex-start; align-items: flex-start; }
+
+    .sender-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 3px;
+      padding-left: 2px;
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      max-width: 100%;
+    }
+
+    .msg-wrapper.me .msg-bubble {
+      background: var(--bubble-me);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg-wrapper.other .msg-bubble {
+      background: var(--bubble-other);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 3px;
+      font-size: 10px;
+      color: var(--text-muted);
+      padding: 0 2px;
+    }
+
+    .msg-status {
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .msg-status.sending { color: var(--text-muted); }
+    .msg-status.saved { color: var(--green); }
+    .msg-status.read { color: var(--blue-read); }
+
+    /* ─── CHAT INPUT ──────────────────────────────────────────── */
+    .chat-input-bar {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .chat-input-bar input {
+      flex: 1;
+      border-radius: 24px;
+      padding: 10px 16px;
+    }
+
+    .chat-input-bar button {
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    /* ─── TOAST ───────────────────────────────────────────────── */
+    #toastContainer {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: var(--notif-bg);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      max-width: 320px;
+      animation: toastIn 0.25s ease-out;
+      cursor: pointer;
+    }
+
+    .toast:hover { opacity: 0.9; }
+
+    .toast .toast-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast .toast-body { font-size: 13px; }
+
+    @keyframes toastIn {
+      from { transform: translateX(110%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ─── NOTIFICATION BADGE ──────────────────────────────────── */
+    .notif-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--notif-bg);
+      color: white;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      cursor: pointer;
+      display: none;
+    }
+
+    .notif-badge .count {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--danger);
+      color: white;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    /* ─── CONSOLE / LOG ───────────────────────────────────────── */
+    .log-panel {
+      height: 160px;
+      background: #060d1a;
+      border-top: 1px solid #1e3a5f;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+    }
+
+    .log-header {
+      padding: 4px 12px;
+      border-bottom: 1px solid #1e3a5f;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .log-header span { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .log-header button {
+      background: transparent;
+      color: #64748b;
+      border: none;
+      font-size: 10px;
+      padding: 2px 6px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .log-header button:hover { color: #94a3b8; background: #1e293b; }
+
+    #logOutput {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .log-line { color: #4ade80; white-space: pre-wrap; word-break: break-all; line-height: 1.4; }
+    .log-line.info { color: #38bdf8; }
+    .log-line.warn { color: #fbbf24; }
+    .log-line.error { color: #f87171; }
+    .log-line.sent { color: #a78bfa; }
+    .log-line.recv { color: #34d399; }
+    .log-line.read { color: #38bdf8; }
+    .log-line.notif { color: #f9a8d4; }
+
+    /* ─── MODAL / OVERLAY ─────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal h3 { font-size: 17px; font-weight: 700; }
+
+    .scrollbar::-webkit-scrollbar { width: 4px; }
+    .scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- ─── TOAST CONTAINER ─────────────────────────────────────── -->
+  <div id="toastContainer"></div>
+
+  <!-- ─── CONNECT MODAL ──────────────────────────────────────── -->
+  <div class="modal-overlay" id="connectModal">
+    <div class="modal">
+      <h3>⚡ Chat Real-Time</h3>
+      <p style="font-size: 13px; color: var(--text-muted);">Configure a conexão WebSocket para começar.</p>
+
+      <div class="input-group">
+        <label>WebSocket URL</label>
+        <input type="text" id="wsUrl" value="ws://localhost:8080/ws" placeholder="ws://localhost:8080/ws">
+      </div>
+
+      <div class="input-group">
+        <label>JWT Token</label>
+        <input type="password" id="tokenInput" placeholder="Seu JWT token (sem o prefixo Bearer)">
+      </div>
+
+      <div class="input-group">
+        <label>UUID da Conversa</label>
+        <input type="text" id="conversationIdInput" placeholder="550e8400-e29b-41d4-a716-...">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="connect()">Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SIDEBAR ────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <h2>Chat Real-Time</h2>
+          <div class="subtitle" id="myUserLabel">Desconectado</div>
+        </div>
+        <span class="status-pill offline" id="connStatus">Offline</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="openConnectModal()" id="btnReconnect">Reconectar</button>
+        <button class="btn-danger" onclick="disconnect()" id="btnDisconnect" disabled>Desconectar</button>
+      </div>
+    </div>
+
+    <div class="conv-list scrollbar" id="convList">
+      <div class="empty-state">
+        Conecte-se e entre em uma conversa para começar.
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN CHAT ───────────────────────────────────────────── -->
+  <main class="chat-area">
+    <header class="chat-header" id="chatHeader">
+      <div class="avatar" id="chatAvatar">💬</div>
+      <div class="info">
+        <div class="name" id="chatName">Nenhuma conversa</div>
+        <div class="sub" id="chatSub">Selecione ou entre em uma conversa</div>
+      </div>
+    </header>
+
+    <div class="chat-messages scrollbar" id="chatMessages">
+      <div class="chat-placeholder">
+        <div class="icon">💬</div>
+        <p>Entre em uma conversa para começar a conversar.</p>
+      </div>
+    </div>
+
+    <div class="chat-input-bar">
+      <input type="text" id="msgInput" placeholder="Digite uma mensagem..." disabled
+             onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendMessage(); }">
+      <button class="btn-primary" id="btnSend" onclick="sendMessage()" disabled>➤</button>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="log-panel">
+      <div class="log-header">
+        <span>📋 Console de Eventos STOMP</span>
+        <button onclick="clearLog()">Limpar</button>
+      </div>
+      <div id="logOutput" class="scrollbar"></div>
+    </div>
+  </main>
+
+  <script>
+    // ──────────────────────────────────────────────────────────────
+    //  STATE
+    // ──────────────────────────────────────────────────────────────
+    let stompClient   = null;
+    let myUserId      = null;
+    let myUserName    = null;
+    let activeConvId  = null;
+    let topicSub      = null;
+
+    // Maps for linking client-side bubbles to server IDs
+    // clientMessageId → { element, messageId? }
+    const pendingMap  = new Map();
+    // server messageId → DOM element (bubbles sent by me)
+    const myMsgMap    = new Map();
+
+    // Unread notification count
+    let unreadNotifs  = 0;
+
+    // ──────────────────────────────────────────────────────────────
+    //  UTILITY
+    // ──────────────────────────────────────────────────────────────
+    function parseJwt(token) {
+      try {
+        const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(decodeURIComponent(atob(b64).split('').map(c =>
+          '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+      } catch { return null; }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatTime(isoOrDate) {
+      const d = isoOrDate ? new Date(isoOrDate) : new Date();
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function shortId(uuid) {
+      return uuid ? uuid.substring(0, 8) + '...' : '???';
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  LOG
+    // ──────────────────────────────────────────────────────────────
+    function log(msg, type = '') {
+      const out  = document.getElementById('logOutput');
+      const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const line = document.createElement('div');
+      line.className = 'log-line ' + type;
+      line.textContent = `[${time}] ${msg}`;
+      out.appendChild(line);
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logOutput').innerHTML = '';
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  CONNECT MODAL
+    // ──────────────────────────────────────────────────────────────
+    function openConnectModal() {
+      document.getElementById('connectModal').style.display = 'flex';
+    }
+
+    function closeConnectModal() {
+      document.getElementById('connectModal').style.display = 'none';
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  CONNECTION
+    // ──────────────────────────────────────────────────────────────
+    function connect() {
+      const url   = document.getElementById('wsUrl').value.trim();
+      const raw   = document.getElementById('tokenInput').value.trim();
+      const convId = document.getElementById('conversationIdInput').value.trim();
+
+      if (!raw) { alert('Informe o JWT Token!'); return; }
+
+      const token  = raw.startsWith('Bearer ') ? raw : 'Bearer ' + raw;
+      const parsed = parseJwt(raw.startsWith('Bearer ') ? raw.substring(7) : raw);
+      myUserId     = parsed?.sub ?? null;
+      myUserName   = parsed?.name ?? parsed?.preferred_username ?? parsed?.sub?.substring(0, 8) ?? 'Eu';
+
+      document.getElementById('myUserLabel').textContent = `Conectado como: ${myUserName}`;
+
+      stompClient = new StompJs.Client({
+        brokerURL: url,
+        connectHeaders: { Authorization: token },
+        reconnectDelay: 0,
+
+        onConnect: () => {
+          log('WebSocket STOMP conectado!', 'info');
+          setConnected(true);
+          closeConnectModal();
+
+          // ── 1. Fila privada de ACK ──────────────────────────
+          stompClient.subscribe('/user/queue/messages.ack', frame => {
+            const event = JSON.parse(frame.body);
+            log(`ACK ← ${frame.body}`, 'recv');
+            if (event.event === 'message:ack') handleAck(event.data);
+          });
+
+          // ── 2. Fila privada de Notificações ─────────────────
+          stompClient.subscribe('/user/queue/notifications', frame => {
+            const event = JSON.parse(frame.body);
+            log(`NOTIFICAÇÃO ← ${frame.body}`, 'notif');
+            if (event.event === 'notification:new') handleNotification(event.data);
+          });
+
+          log(`Subscrito em /user/queue/messages.ack e /user/queue/notifications`, 'info');
+
+          // ── Entra na conversa, se informada ─────────────────
+          if (convId) {
+            joinConversation(convId);
+          }
+        },
+
+        onStompError: frame => {
+          log(`ERRO STOMP: ${frame.headers['message'] || frame.body}`, 'error');
+          alert('Erro STOMP: ' + (frame.headers['message'] || frame.body));
+        },
+
+        onWebSocketClose: () => {
+          log('WebSocket desconectado.', 'warn');
+          setConnected(false);
+        }
+      });
+
+      stompClient.activate();
+    }
+
+    function disconnect() {
+      if (stompClient) {
+        stompClient.deactivate();
+        stompClient = null;
+      }
+      setConnected(false);
+      myUserId   = null;
+      myUserName = null;
+      activeConvId = null;
+      topicSub   = null;
+      document.getElementById('myUserLabel').textContent = 'Desconectado';
+      resetChatArea();
+    }
+
+    function setConnected(online) {
+      const pill = document.getElementById('connStatus');
+      pill.className = 'status-pill ' + (online ? 'online' : 'offline');
+      pill.textContent = online ? 'Online' : 'Offline';
+      document.getElementById('btnDisconnect').disabled = !online;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  JOIN CONVERSATION
+    // ──────────────────────────────────────────────────────────────
+    function joinConversation(convId) {
+      if (!stompClient || !stompClient.connected) {
+        alert('Conecte-se primeiro!');
+        return;
+      }
+
+      if (topicSub) topicSub.unsubscribe();
+
+      activeConvId = convId;
+
+      // Update sidebar list
+      renderConvInSidebar(convId);
+
+      // Update chat header
+      document.getElementById('chatAvatar').textContent = '💬';
+      document.getElementById('chatName').textContent   = `Conversa ${shortId(convId)}`;
+      document.getElementById('chatSub').textContent    = `/topic/conversations/${convId}`;
+
+      // Clear messages area
+      const msgs = document.getElementById('chatMessages');
+      msgs.innerHTML = '';
+
+      // Enable input
+      document.getElementById('msgInput').disabled  = false;
+      document.getElementById('btnSend').disabled   = false;
+      document.getElementById('msgInput').focus();
+
+      // Subscribe to conversation topic
+      const destination = `/topic/conversations/${convId}`;
+      topicSub = stompClient.subscribe(destination, frame => {
+        const event = JSON.parse(frame.body);
+        log(`← ${destination}: ${frame.body}`, 'recv');
+
+        switch (event.event) {
+          case 'message:new':        handleMessageNew(event.data);        break;
+          case 'message:read:update': handleMessageReadUpdate(event.data); break;
+          default:
+            log(`Evento desconhecido: ${event.event}`, 'warn');
+        }
+      });
+
+      log(`Subscrito em ${destination}`, 'info');
+    }
+
+    function renderConvInSidebar(convId) {
+      const list = document.getElementById('convList');
+
+      // If already rendered, just mark active
+      let existing = list.querySelector(`[data-conv="${convId}"]`);
+      if (!existing) {
+        existing = document.createElement('div');
+        existing.className = 'conv-item';
+        existing.dataset.conv = convId;
+        existing.innerHTML = `
+          <div class="conv-avatar">💬</div>
+          <div class="conv-info">
+            <div class="conv-name">${shortId(convId)}</div>
+            <div class="conv-preview" id="conv-preview-${convId}">Sem mensagens</div>
+          </div>
+          <div class="conv-unread" id="conv-unread-${convId}" style="display:none">0</div>
+        `;
+        existing.onclick = () => joinConversation(convId);
+
+        // Clear empty state
+        const empty = list.querySelector('.empty-state');
+        if (empty) empty.remove();
+
+        list.appendChild(existing);
+      }
+
+      list.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+      existing.classList.add('active');
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  SEND MESSAGE
+    // ──────────────────────────────────────────────────────────────
+    function sendMessage() {
+      const input   = document.getElementById('msgInput');
+      const content = input.value.trim();
+      if (!content || !activeConvId) return;
+
+      const clientMsgId = 'client-' + Date.now();
+      const payload = {
+        event: 'message:send',
+        data: {
+          conversationId:  activeConvId,
+          clientMessageId: clientMsgId,
+          content:         content
+        }
+      };
+
+      // Render bubble optimistically
+      const element = renderBubbleMe(content, clientMsgId, new Date());
+      pendingMap.set(clientMsgId, { element, messageId: null });
+
+      stompClient.publish({
+        destination: '/app/messages.send',
+        body: JSON.stringify(payload)
+      });
+
+      log(`→ /app/messages.send  clientId=${clientMsgId}  "${content}"`, 'sent');
+      input.value = '';
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  HANDLERS
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * ACK: servidor confirmou que a mensagem foi salva no banco.
+     * Vincula o messageId real ao elemento do DOM e marca como ✓ SALVA.
+     */
+    function handleAck(data) {
+      const entry = pendingMap.get(data.clientMessageId);
+      if (!entry) return;
+
+      entry.messageId = data.messageId;
+      myMsgMap.set(data.messageId, entry.element);
+
+      setMsgStatus(entry.element, 'saved', '✓ SALVA');
+      log(`ACK: clientId=${data.clientMessageId} → serverId=${data.messageId} status=${data.status}`, 'info');
+    }
+
+    /**
+     * message:new: nova mensagem na conversa.
+     *
+     * Se for minha mensagem (senderId === myUserId):
+     *   → NÃO renderiza de novo (já foi renderizada otimisticamente),
+     *     mas aproveita para vincular o messageId ao DOM (fallback do ACK).
+     *
+     * Se for de outro usuário:
+     *   → Renderiza o balão e envia automaticamente o recibo de leitura.
+     */
+    function handleMessageNew(data) {
+      // Update sidebar preview
+      updateConvPreview(data.conversationId, data.senderName, data.content);
+
+      if (data.conversationId !== activeConvId) {
+        // Mensagem de conversa não-ativa → incrementa badge
+        incrementConvBadge(data.conversationId);
+        return;
+      }
+
+      if (myUserId && data.senderId === myUserId) {
+        // Minha própria mensagem → só garante o vínculo do messageId (fallback do ACK)
+        if (!myMsgMap.has(data.id)) {
+          // ACK pode não ter chegado ainda — procura pelo clientMessageId via pendingMap
+          for (const [clientId, entry] of pendingMap.entries()) {
+            if (!entry.messageId) {
+              entry.messageId = data.id;
+              myMsgMap.set(data.id, entry.element);
+              setMsgStatus(entry.element, 'saved', '✓ SALVA');
+              log(`message:new (meu, fallback ACK) → serverId=${data.id}`, 'info');
+              break;
+            }
+          }
+        }
+        return;
+      }
+
+      // Mensagem de outro usuário → renderiza e marca como lida
+      renderBubbleOther(data);
+      sendReadReceipt(data.id, data.conversationId);
+    }
+
+    /**
+     * message:read:update: alguém leu uma das minhas mensagens.
+     * Atualiza o status do balão para ✓✓ LIDA.
+     */
+    function handleMessageReadUpdate(data) {
+      const element = myMsgMap.get(data.messageId);
+      if (element) {
+        setMsgStatus(element, 'read', '✓✓ LIDA');
+        log(`LEITURA CONFIRMADA: messageId=${data.messageId} lida por userId=${data.userId}`, 'read');
+      }
+    }
+
+    /**
+     * notification:new: o backend notificou que há nova mensagem
+     * direcionada a este usuário.
+     */
+    function handleNotification(data) {
+      showToast(`🔔 ${data.senderName ?? 'Alguém'}`, data.content ?? 'Nova mensagem');
+      log(`NOTIFICAÇÃO: de=${data.senderName} conteúdo="${data.content}"`, 'notif');
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  READ RECEIPT
+    // ──────────────────────────────────────────────────────────────
+    function sendReadReceipt(messageId, conversationId) {
+      const payload = {
+        event: 'message:read',
+        data: { conversationId, messageId }
+      };
+
+      stompClient.publish({
+        destination: '/app/messages.read',
+        body: JSON.stringify(payload)
+      });
+
+      log(`→ /app/messages.read  messageId=${messageId}`, 'read');
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  RENDER BUBBLES
+    // ──────────────────────────────────────────────────────────────
+    function renderBubbleMe(content, clientMsgId, date) {
+      const container = document.getElementById('chatMessages');
+      clearPlaceholder();
+
+      const wrapper       = document.createElement('div');
+      wrapper.className   = 'msg-wrapper me';
+      wrapper.id          = 'msg-' + clientMsgId;
+      wrapper.innerHTML   = `
+        <div class="msg-bubble">${escapeHtml(content)}</div>
+        <div class="msg-meta">
+          <span>${formatTime(date)}</span>
+          <span class="msg-status sending">🕒 enviando...</span>
+        </div>
+      `;
+
+      container.appendChild(wrapper);
+      scrollToBottom();
+      return wrapper;
+    }
+
+    function renderBubbleOther(data) {
+      const container = document.getElementById('chatMessages');
+      clearPlaceholder();
+
+      const wrapper       = document.createElement('div');
+      wrapper.className   = 'msg-wrapper other';
+      wrapper.id          = 'msg-db-' + data.id;
+      wrapper.innerHTML   = `
+        <div class="sender-label">${escapeHtml(data.senderName ?? 'Participante')}</div>
+        <div class="msg-bubble">${escapeHtml(data.content)}</div>
+        <div class="msg-meta">
+          <span>${formatTime(data.createdAt)}</span>
+        </div>
+      `;
+
+      container.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function setMsgStatus(element, cssClass, text) {
+      const span = element.querySelector('.msg-status');
+      if (!span) return;
+      span.className = 'msg-status ' + cssClass;
+      span.textContent = text;
+    }
+
+    function clearPlaceholder() {
+      const p = document.getElementById('chatMessages').querySelector('.chat-placeholder');
+      if (p) p.remove();
+    }
+
+    function scrollToBottom() {
+      const c = document.getElementById('chatMessages');
+      c.scrollTop = c.scrollHeight;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  SIDEBAR HELPERS
+    // ──────────────────────────────────────────────────────────────
+    function updateConvPreview(convId, senderName, content) {
+      const el = document.getElementById(`conv-preview-${convId}`);
+      if (el) el.textContent = `${senderName}: ${content}`;
+    }
+
+    function incrementConvBadge(convId) {
+      const badge = document.getElementById(`conv-unread-${convId}`);
+      if (!badge) return;
+      badge.style.display = 'block';
+      badge.textContent   = parseInt(badge.textContent || '0') + 1;
+    }
+
+    function resetChatArea() {
+      document.getElementById('chatMessages').innerHTML = `
+        <div class="chat-placeholder">
+          <div class="icon">💬</div>
+          <p>Entre em uma conversa para começar a conversar.</p>
+        </div>`;
+      document.getElementById('msgInput').disabled = true;
+      document.getElementById('btnSend').disabled  = true;
+      document.getElementById('chatName').textContent = 'Nenhuma conversa';
+      document.getElementById('chatSub').textContent  = 'Selecione ou entre em uma conversa';
+      document.getElementById('convList').innerHTML = '<div class="empty-state">Conecte-se e entre em uma conversa para começar.</div>';
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    //  TOAST
+    // ──────────────────────────────────────────────────────────────
+    function showToast(title, body) {
+      const container = document.getElementById('toastContainer');
+      const toast     = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `
+        <div class="toast-title">${escapeHtml(title)}</div>
+        <div class="toast-body">${escapeHtml(body)}</div>
+      `;
+      toast.onclick = () => toast.remove();
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.animation = 'toastIn 0.2s reverse forwards';
+        setTimeout(() => toast.remove(), 200);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

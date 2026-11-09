@@ -2,6 +2,7 @@ package com.focustecnologia.chat_real_time.user.service;
 
 import com.focustecnologia.chat_real_time.auth.controller.response.UserResponse;
 import com.focustecnologia.chat_real_time.auth.service.output.UserOutput;
+import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class UserService {
 
     public UserResponse getById(UUID id) {
         User user = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
         return UserResponse.from(UserOutput.fromUser(user));
     }

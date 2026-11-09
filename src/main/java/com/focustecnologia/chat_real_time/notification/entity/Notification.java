@@ -32,6 +32,13 @@ public class Notification {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    protected Notification() {}
+
+    public Notification(User user, Message message) {
+        this.user = user;
+        this.message = message;
+    }
+
     public void markAsRead() {
         if (!isRead) {
             isRead = true;

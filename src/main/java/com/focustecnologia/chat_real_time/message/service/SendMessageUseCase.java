@@ -5,13 +5,17 @@ import com.focustecnologia.chat_real_time.conversation.repository.ConversationMe
 import com.focustecnologia.chat_real_time.conversation.repository.ConversationRepository;
 import com.focustecnologia.chat_real_time.exception.ForbiddenException;
 import com.focustecnologia.chat_real_time.exception.ResourceNotFoundException;
-import com.focustecnologia.chat_real_time.message.dto.MessageAckPayload;
-import com.focustecnologia.chat_real_time.message.dto.MessageSendPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageAckPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageNewPayload;
+import com.focustecnologia.chat_real_time.message.dto.websocket.MessageSendPayload;
 import com.focustecnologia.chat_real_time.message.entity.Message;
+import com.focustecnologia.chat_real_time.message.event.MessageCreatedEvent;
 import com.focustecnologia.chat_real_time.message.repository.MessageRepository;
+import com.focustecnologia.chat_real_time.notification.service.CreateAndDispatchNotificationService;
 import com.focustecnologia.chat_real_time.user.entity.User;
 import com.focustecnologia.chat_real_time.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,23 +29,30 @@ public class SendMessageUseCase {
     private final ConversationRepository conversationRepository;
     private final ConversationMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final CreateAndDispatchNotificationService dispatchNotificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public MessageAckPayload execute(UUID senderId, MessageSendPayload payload) {
-        Conversation conversation = conversationRepository.findById(payload.conversationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
+    public MessageAckPayload execute(UUID senderId, MessageSendPayload sendPayload) {
+        Conversation conversation = conversationRepository.findById(sendPayload.conversationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found."));
 
         validateExistentMember(conversation.getId(), senderId);
 
         User sender = userRepository.getReferenceById(senderId);
 
-        Optional<Message> message = messageRepository.findByConversationIdAndClientMessageId(conversation.getId(), payload.clientMessageId());
+        Optional<Message> message = messageRepository.findByConversationIdAndClientMessageId(conversation.getId(), sendPayload.clientMessageId());
 
         if (message.isPresent()) {
             return MessageAckPayload.toBody(message.get());
         }
 
-        Message newMessage = createMessage(conversation, sender, payload.content(), payload.clientMessageId());
+        Message newMessage = createMessage(conversation, sender, sendPayload.content(), sendPayload.clientMessageId());
+        MessageNewPayload newPayload = MessageNewPayload.toBody(newMessage);
+
+        eventPublisher.publishEvent(new MessageCreatedEvent(newPayload));
+
+        dispatchNotificationService.dispatchMessageNotifications(newMessage, senderId);
 
         return MessageAckPayload.toBody(newMessage);
     }
@@ -50,12 +61,12 @@ public class SendMessageUseCase {
         boolean exists = memberRepository.existsByConversationIdAndUserId(conversationId, senderId);
 
         if(!exists) {
-            throw new ForbiddenException("User not participating conversation to send message");
+            throw new ForbiddenException("User not participating conversation to send message.");
         }
     }
 
     private Message createMessage(Conversation conversation, User user, String content, String clientMessageId) {
         Message message = new Message(conversation, user, content, clientMessageId);
-        return messageRepository.save(message);
+        return messageRepository.saveAndFlush(message);
     }
 }
