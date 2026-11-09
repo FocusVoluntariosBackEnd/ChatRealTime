@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Real Time - Teste</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px #0002;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-top: 6px;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: 0;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button.danger {
+      background: #dc2626;
+    }
+
+    #messages,
+    #events {
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 0;
+      list-style: none;
+    }
+
+    .message,
+    .event {
+      padding: 10px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      background: #f3f4f6;
+    }
+
+    .message small,
+    .event small {
+      display: block;
+      color: #6b7280;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    .online {
+      color: #15803d;
+      font-weight: bold;
+    }
+
+    .offline {
+      color: #b91c1c;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Chat Real Time - Frontend de Teste</h1>
+
+    <section class="card">
+      <h2>Conexão</h2>
+
+      <div class="grid">
+        <label>
+          URL WebSocket
+          <input id="ws-url" value="ws://localhost:8080/ws" />
+        </label>
+
+        <label>
+          ID da conversa
+          <input id="conversation-id" placeholder="UUID da conversa" />
+        </label>
+      </div>
+
+      <label>
+        JWT
+        <textarea
+          id="token"
+          placeholder="Cole aqui o accessToken retornado pelo login"
+        ></textarea>
+      </label>
+
+      <div class="grid">
+        <button id="connect-button">Conectar</button>
+        <button id="disconnect-button" class="danger">Desconectar</button>
+      </div>
+
+      <p>
+        Status:
+        <span id="connection-status" class="offline">desconectado</span>
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Enviar mensagem</h2>
+
+      <label>
+        Conteúdo
+        <textarea id="message-content" placeholder="Digite uma mensagem"></textarea>
+      </label>
+
+      <button id="send-button">Enviar</button>
+    </section>
+
+    <section class="card">
+      <h2>Mensagens</h2>
+      <ul id="messages"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Eventos</h2>
+      <ul id="events"></ul>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.1.0/bundles/stomp.umd.min.js"></script>
+
+  <script>
+    let client = null;
+    let authenticatedUserId = null;
+
+    const elements = {
+      wsUrl: document.querySelector("#ws-url"),
+      token: document.querySelector("#token"),
+      conversationId: document.querySelector("#conversation-id"),
+      messageContent: document.querySelector("#message-content"),
+      status: document.querySelector("#connection-status"),
+      messages: document.querySelector("#messages"),
+      events: document.querySelector("#events")
+    };
+
+    function addEvent(title, payload) {
+      const item = document.createElement("li");
+      item.className = "event";
+
+      const strong = document.createElement("strong");
+      strong.textContent = title;
+
+      const details = document.createElement("small");
+      details.textContent = JSON.stringify(payload);
+
+      item.append(strong, details);
+      elements.events.prepend(item);
+    }
+
+    function addMessage(data) {
+      const item = document.createElement("li");
+      item.className = "message";
+
+      const author = document.createElement("strong");
+      author.textContent = `${data.senderName ?? data.senderId}: `;
+
+      const content = document.createElement("span");
+      content.textContent = data.content;
+
+      const date = document.createElement("small");
+      date.textContent = `${data.createdAt} | id: ${data.id}`;
+
+      item.append(author, content, date);
+      elements.messages.prepend(item);
+    }
+
+    function updateStatus(connected) {
+      elements.status.textContent = connected ? "conectado" : "desconectado";
+      elements.status.className = connected ? "online" : "offline";
+    }
+
+    function currentConversationId() {
+      const id = elements.conversationId.value.trim();
+
+      if (!id) {
+        throw new Error("Informe o ID da conversa.");
+      }
+
+      return id;
+    }
+
+    function extractJwtSubject(token) {
+      const payload = token.split(".")[1];
+
+      if (!payload) {
+        throw new Error("JWT inválido.");
+      }
+
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const decodedPayload = JSON.parse(atob(base64));
+
+      if (!decodedPayload.sub) {
+        throw new Error("JWT sem identificador de usuário.");
+      }
+
+      return decodedPayload.sub;
+    }
+
+    function markMessageAsRead(message) {
+      if (!client?.connected || message.senderId === authenticatedUserId) {
+        return;
+      }
+
+      client.publish({
+        destination: "/app/messages.read",
+        body: JSON.stringify({
+          event: "message:read",
+          data: {
+            conversationId: message.conversationId,
+            messageId: message.id
+          }
+        })
+      });
+
+      addEvent("message:read", { messageId: message.id });
+    }
+
+    function subscribeToConversation() {
+      const conversationId = currentConversationId();
+
+      client.subscribe(`/topic/conversations/${conversationId}`, (frame) => {
+        const event = JSON.parse(frame.body);
+
+        addEvent(event.event, event.data);
+
+        if (event.event === "message:new") {
+          addMessage(event.data);
+          markMessageAsRead(event.data);
+        }
+      });
+
+      addEvent("subscription", {
+        destination: `/topic/conversations/${conversationId}`
+      });
+    }
+
+    function subscribeToPrivateQueues() {
+      client.subscribe("/user/queue/messages.ack", (frame) => {
+        const event = JSON.parse(frame.body);
+        addEvent(event.event, event.data);
+      });
+
+      client.subscribe("/user/queue/notifications", (frame) => {
+        const event = JSON.parse(frame.body);
+        addEvent(event.event, event.data);
+      });
+
+      client.subscribe("/user/queue/presence", (frame) => {
+        const event = JSON.parse(frame.body);
+        addEvent(event.event, event.data);
+      });
+    }
+
+    document.querySelector("#connect-button").addEventListener("click", () => {
+      const token = elements.token.value.trim();
+
+      if (!token) {
+        alert("Informe o JWT.");
+        return;
+      }
+
+      if (client?.active) {
+        alert("Já existe uma conexão ativa.");
+        return;
+      }
+
+      try {
+        authenticatedUserId = extractJwtSubject(token);
+      } catch (error) {
+        alert(error.message);
+        return;
+      }
+
+      client = new StompJs.Client({
+        brokerURL: elements.wsUrl.value.trim(),
+        connectHeaders: {
+          Authorization: `Bearer ${token}`
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 15000,
+        heartbeatOutgoing: 15000,
+
+        onConnect: () => {
+          updateStatus(true);
+          addEvent("connected", { websocket: elements.wsUrl.value.trim() });
+
+          try {
+            subscribeToConversation();
+            subscribeToPrivateQueues();
+          } catch (error) {
+            addEvent("configuration-error", { message: error.message });
+          }
+        },
+
+        onStompError: (frame) => {
+          addEvent("stomp-error", {
+            message: frame.headers.message,
+            body: frame.body
+          });
+        },
+
+        onWebSocketClose: () => {
+          updateStatus(false);
+          addEvent("disconnected", {});
+        }
+      });
+
+      client.activate();
+    });
+
+    document.querySelector("#disconnect-button").addEventListener("click", () => {
+      if (client?.active) {
+        client.deactivate();
+      }
+
+      updateStatus(false);
+    });
+
+    document.querySelector("#send-button").addEventListener("click", () => {
+      if (!client?.connected) {
+        alert("Conecte ao WebSocket primeiro.");
+        return;
+      }
+
+      const content = elements.messageContent.value.trim();
+
+      if (!content) {
+        alert("Digite uma mensagem.");
+        return;
+      }
+
+      const clientMessageId = crypto.randomUUID();
+
+      client.publish({
+        destination: "/app/messages.send",
+        body: JSON.stringify({
+          event: "message:send",
+          data: {
+            conversationId: currentConversationId(),
+            clientMessageId,
+            content
+          }
+        })
+      });
+
+      addEvent("message:send", { clientMessageId, content });
+      elements.messageContent.value = "";
+    });
+
+  </script>
+</body>
+</html>
